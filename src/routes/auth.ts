@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { PrismaClient, UserRole } from "@prisma/client";
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
@@ -47,58 +47,102 @@ function validateRequest<T>(
   return result.data;
 }
 
+router.post("/register", async (req: Request, res: Response) => {
+  const data = validateRequest(registerSchema, req, res);
+  if (!data) {
+    return;
+  }
 
-router.post('/register', async(req: Request, res: Response) => {
-    const data = validateRequest(registerSchema, req, res);
-    if(!data){
-        return;
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ mesage: "User already exists" });
     }
 
-    try {
-        const existingUser = await prisma.user.findUnique({
-            where: {email: data.email}
-        })
-    
-        if(existingUser){
-            return res.status(400).json({ mesage: 'User already exists'});
-        }
-    
-        const hashedPassword = await bcrypt.hash(data.password, 10)
-    
-        const user = await prisma.user.create({
-            data: {
-                name: data.name,
-                email: data.email,
-                password: hashedPassword,
-                role: data.role,
-            },
-        })
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-        const token = jwt.sign(
-            { userId: user.id, email: user.email, role: user.role},
-            process.env.JWT_SECRET!,
-            { expiresIn: '1h' }
-        );
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        role: data.role,
+      },
+    });
 
-        const response: AuthResponse = {
-            message: 'User registered successfully',
-            token,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            }
-        }
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: "1h" }
+    );
 
-        res.status(200).json(response)
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            status: false,
-            message: 'Internal servel error'
+    const response: AuthResponse = {
+      message: "User registered successfully",
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal servel error",
+    });
+  }
+});
+
+router.post("/signin", async (req: Request, res: Response) => {
+  const data = validateRequest(loginSchema, req, res);
+  if (!data) return;
+
+  try {
+    const user  = await prisma.user.findUnique({ where: {email: data.email}})
+    
+    if(!user){
+        return res.status(401).json({
+            message: 'Invalid credentials'
         })
     }
 
+    const isPasswordValid = await bcrypt.compare(data.password, user.password);
+    if(!isPasswordValid){
+        return res.status(401).json({
+            message: "Invalid credentials"
+        })
+    }
 
-})
+    const token = jwt.sign(
+        {userId: user.id, email: user.email, role: user.role},
+        process.env.JWT_SECRET!,
+        { expiresIn: '1h' }
+    );
+
+    const response: AuthResponse = {
+        message: 'Login Successful',
+        token,
+        user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+        }
+    }
+
+    return res.status(200).json(response)
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+});
