@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  role      UserRole
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  orders    Order[]
+  locations Location[]
+}
+
+model Order {
+  id          Int        @id @default(autoincrement())
+  customerId  Int
+  restaurantId Int
+  status      OrderStatus
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customer    User       @relation(fields: [customerId], references: [id])
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  items       OrderItem[]
+}
+
+model Restaurant {
+  id        Int       @id @default(autoincrement())
+  name      String
+  location  String
+  items     Item[]
+  orders    Order[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Item {
+  id           Int        @id @default(autoincrement())
+  name         String
+  price        Float
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  orders       OrderItem[]
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  latitude  Float
+  longitude Float
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model OrderItem {
+  id       Int    @id @default(autoincrement())
+  orderId  Int
+  itemId   Int
+  quantity Int
+  order    Order  @relation(fields: [orderId], references: [id])
+  item     Item   @relation(fields: [itemId], references: [id])
+}
+
+enum UserRole {
+  CUSTOMER
+  DELIVERY_PERSONNEL
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  IN_TRANSIT
+  DELIVERED
+  CANCELED
+}
