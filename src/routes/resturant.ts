@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { z, ZodSchema } from "zod";
+import { z } from "zod";
 import auth from "../middleware/auth";
 
 const router = express.Router();
@@ -17,8 +17,8 @@ interface RestaurantData {
   }[];
 }
 
-const createResturantSchema = z.object({
-  name: z.string().min(1, "Resturant name is required"),
+const createRestaurantSchema = z.object({
+  name: z.string().min(1, "Restaurant name is required"),
   location: z.string().min(1, "Location is required"),
 });
 
@@ -52,7 +52,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get(":/id", async (req, res) => {
+router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const restaurant = await prisma.restaurant.findUnique({
@@ -63,7 +63,7 @@ router.get(":/id", async (req, res) => {
       return res.status(404).json({ message: "Restaurant not found" });
     }
 
-    const resturantData: RestaurantData = {
+    const restaurantData: RestaurantData = {
       id: restaurant.id,
       name: restaurant.name,
       location: restaurant.location,
@@ -74,7 +74,7 @@ router.get(":/id", async (req, res) => {
       })),
     };
 
-    res.json(resturantData);
+    res.json(restaurantData);
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -85,23 +85,24 @@ router.get(":/id", async (req, res) => {
 });
 
 router.post("/", auth, async (req: Request, res: Response) => {
-  if (req.userData!.role !== "ADMIN") {
+  if (req.userData?.role !== "ADMIN") {
     return res
       .status(403)
       .json({ message: "Only admins can create restaurants" });
   }
 
-  const data = validateRequest(createResturantSchema, req, res);
-  if(!data) return null
-  try {
-    const resturant = await prisma.restaurant.create({
-        data: {
-            name: data.name,
-            location: data.location
-        }
-    })
+  const data = validateRequest(createRestaurantSchema, req, res);
+  if (!data) return;
 
-    res.status(200).json(resturant)
+  try {
+    const restaurant = await prisma.restaurant.create({
+      data: {
+        name: data.name,
+        location: data.location,
+      },
+    });
+
+    res.status(201).json(restaurant);
   } catch (error) {
     console.error(error);
     return res.status(500).json({
