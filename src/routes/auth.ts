@@ -4,11 +4,17 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
+import { TwitterApi } from 'twitter-api-v2';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const twitterClient = new TwitterApi({
+  appKey: process.env.TWITTER_API_KEY!,
+  appSecret: process.env.TWITTER_API_SECRET!,
+});
 
 interface UserData {
   id: number;
@@ -210,6 +216,22 @@ router.post("/google-login", async (req: Request, res: Response) => {
       status: false,
       message: "Internal server error",
     });
+  }
+});
+
+
+router.get('/twitter-login', async (req: Request, res: Response) => {
+  try {
+    const { url, oauth_token, oauth_token_secret } = await twitterClient.generateAuthLink(
+      process.env.TWITTER_CALLBACK_URL!
+    );
+    
+    res.cookie('oauth_token_secret', oauth_token_secret, { httpOnly: true, secure: true });
+
+    res.json({ url, oauth_token });
+  } catch (error) {
+    console.error('Twitter login initiation error:', error);
+    res.status(500).json({ message: 'Error initiating Twitter login' });
   }
 });
 
