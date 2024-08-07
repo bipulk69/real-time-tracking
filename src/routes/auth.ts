@@ -13,10 +13,10 @@ const prisma = new PrismaClient();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const twitterClient = new TwitterApi({
-  appKey: process.env.TWITTER_API_KEY!,
-  appSecret: process.env.TWITTER_API_SECRET!,
-});
+// const twitterClient = new TwitterApi({
+//   appKey: process.env.TWITTER_API_KEY!,
+//   appSecret: process.env.TWITTER_API_SECRET!,
+// });
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -240,85 +240,85 @@ router.post("/google-login", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/twitter-login", async (req: Request, res: Response) => {
-  try {
-    const { url, oauth_token, oauth_token_secret } =
-      await twitterClient.generateAuthLink(process.env.TWITTER_CALLBACK_URL!);
+// router.get("/twitter-login", async (req: Request, res: Response) => {
+//   try {
+//     const { url, oauth_token, oauth_token_secret } =
+//       await twitterClient.generateAuthLink(process.env.TWITTER_CALLBACK_URL!);
 
-    res.cookie("oauth_token_secret", oauth_token_secret, {
-      httpOnly: true,
-      secure: true,
-    });
+//     res.cookie("oauth_token_secret", oauth_token_secret, {
+//       httpOnly: true,
+//       secure: true,
+//     });
 
-    res.json({ url, oauth_token });
-  } catch (error) {
-    console.error("Twitter login initiation error:", error);
-    res.status(500).json({ message: "Error initiating Twitter login" });
-  }
-});
+//     res.json({ url, oauth_token });
+//   } catch (error) {
+//     console.error("Twitter login initiation error:", error);
+//     res.status(500).json({ message: "Error initiating Twitter login" });
+//   }
+// });
 
-router.get("/twitter-callback", async (req: Request, res: Response) => {
-  const { oauth_token, oauth_verifier } = req.query;
-  const oauth_token_secret = req.cookies.oauth_token_secret;
+// router.get("/twitter-callback", async (req: Request, res: Response) => {
+//   const { oauth_token, oauth_verifier } = req.query;
+//   const oauth_token_secret = req.cookies.oauth_token_secret;
 
-  if (!oauth_token || !oauth_verifier || !oauth_token_secret) {
-    return res.status(400).json({ message: "Invalid Twitter callback" });
-  }
+//   if (!oauth_token || !oauth_verifier || !oauth_token_secret) {
+//     return res.status(400).json({ message: "Invalid Twitter callback" });
+//   }
 
-  try {
-    const client = new TwitterApi({
-      appKey: process.env.TWITTER_API_KEY!,
-      appSecret: process.env.TWITTER_API_SECRET!,
-      accessToken: oauth_token as string,
-      accessSecret: oauth_token_secret,
-    });
+//   try {
+//     const client = new TwitterApi({
+//       appKey: process.env.TWITTER_API_KEY!,
+//       appSecret: process.env.TWITTER_API_SECRET!,
+//       accessToken: oauth_token as string,
+//       accessSecret: oauth_token_secret,
+//     });
 
-    const {
-      client: loggedClient,
-      accessToken,
-      accessSecret,
-    } = await client.login(oauth_verifier as string);
-    const twitterUser = await loggedClient.v2.me();
+//     const {
+//       client: loggedClient,
+//       accessToken,
+//       accessSecret,
+//     } = await client.login(oauth_verifier as string);
+//     const twitterUser = await loggedClient.v2.me();
 
-    let user = await prisma.user.findUnique({
-      where: { twitterId: twitterUser.data.id },
-    });
+//     let user = await prisma.user.findUnique({
+//       where: { twitterId: twitterUser.data.id },
+//     });
 
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: `twitter_${twitterUser.data.id}@example.com`,
-          name: twitterUser.data.name,
-          password: await bcrypt.hash(Math.random().toString(36).slice(-8), 10),
-          role: "CUSTOMER" as UserRole,
-          twitterId: twitterUser.data.id,
-        },
-      });
-    }
+//     if (!user) {
+//       user = await prisma.user.create({
+//         data: {
+//           email: `twitter_${twitterUser.data.id}@example.com`,
+//           name: twitterUser.data.name,
+//           password: await bcrypt.hash(Math.random().toString(36).slice(-8), 10),
+//           role: "CUSTOMER" as UserRole,
+//           twitterId: twitterUser.data.id,
+//         },
+//       });
+//     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
+//     const token = jwt.sign(
+//       { userId: user.id, email: user.email, role: user.role },
+//       process.env.JWT_SECRET!,
+//       { expiresIn: "1h" }
+//     );
 
-    res.clearCookie("oauth_token_secret");
+//     res.clearCookie("oauth_token_secret");
 
-    res.json({
-      message: "Twitter login successful",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (error) {
-    console.error("Twitter login callback error:", error);
-    res.status(500).json({ message: "Error during Twitter login" });
-  }
-});
+//     res.json({
+//       message: "Twitter login successful",
+//       token,
+//       user: {
+//         id: user.id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Twitter login callback error:", error);
+//     res.status(500).json({ message: "Error during Twitter login" });
+//   }
+// });
 
 router.post("/forgot-password", async (req: Request, res: Response) => {
   const data = validateRequest(forgotPasswordSchema, req, res);
